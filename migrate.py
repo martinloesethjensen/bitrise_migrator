@@ -1,3 +1,4 @@
+import fileinput
 import os
 import shlex
 import subprocess
@@ -5,6 +6,7 @@ import sys
 from pathlib import Path
 
 import click
+from pip._vendor import requests
 
 HOME_DIR = str(Path.home())
 BITRISE_MIGRATOR_DIR = '.bitrise_migrator'
@@ -26,7 +28,12 @@ def migrate():
         "personal Bitrise project\n\tEnter '2' to create an organizational project\n\tEnter 'q' "
         "to quit\nYour input: ")
 
-    is_public: bool = handle_public_entry("Will this project be public? Defaults to not public.\nYour input (y/n): ")
+    is_public: bool = handle_user_yn_input("Will this project be public? Defaults to not public.\nYour input (y/n): ")
+
+    import_file: bool = handle_user_yn_input("Would you like to import Bitrise workflow from url (y/n): ")
+
+    if import_file:
+        prepare_bitrise_file(url=input("Enter url to raw text file example a github raw link: "))
 
     setup_bitrise(token=token, org=org_id, is_org=True if len(org_id) > 0 else False, public=is_public)
 
@@ -42,6 +49,25 @@ def run_setup(token: str = "", org: str = "", public: bool = False):
     setup_bitrise(token=token, org=org, is_org=True if len(org) > 0 else False, public=public)
 
 
+@main.command()
+@click.option("--url", prompt="Enter url for raw text file", type=click.STRING,
+              help="A GitHub link like this: https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/v0.1.1.pre/migrate.py")
+def import_bitrise_file(url: str):
+    prepare_bitrise_file(url)
+
+
+def prepare_bitrise_file(url: str):
+    res = requests.get(url)
+    with open("bitrise.yml", "w+") as file:
+        file.write(res.text)
+    file.close()
+
+    dirname = os.path.dirname(os.getcwd())
+    print(dirname)
+
+    find_and_replace("<PROJECT_NAME>", dirname, "bitrise.yml")
+
+
 def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: bool = False):
     org_personal_placeholder: str = f'--org "{org}"' if is_org else '--personal "true"'
     public_placeholder: str = 'true' if public else 'false'
@@ -50,6 +76,12 @@ def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: 
           f'{org_personal_placeholder} --public "{public_placeholder}" --website" '
     args = shlex.split(cmd)
     subprocess.run(args)
+
+
+def find_and_replace(find, replace, file_name):
+    with fileinput.FileInput(file_name, inplace=True) as file:
+        for line in file:
+            print(line.replace(replace, find), end='')
 
 
 def handle_bitrise_migrator_files(file: str, prompt: str) -> str:
@@ -111,7 +143,7 @@ def handle_user_input_entry(prompt: str) -> tuple:
                 return bitrise_token, org_id
 
 
-def handle_public_entry(prompt: str) -> bool:
+def handle_user_yn_input(prompt: str) -> bool:
     return True if input(prompt).strip().lower() == "y" else False
 
 

@@ -1,0 +1,102 @@
+---
+    format_version: '8'
+    default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+    project_type: android
+    workflows:
+      deployDev:
+        description:
+        steps:
+        - activate-ssh-key@4.0.3:
+            run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+        - git-clone@4.0.14: {}
+        - cache-pull@2.0.1: {}
+        - install-missing-android-tools@2.3.5:
+            inputs:
+            - gradlew_path: "$PROJECT_LOCATION/gradlew"
+        - change-android-versioncode-and-versionname@1.1.1:
+            inputs:
+            - version_code_offset: '1000'
+            - build_gradle_path: "$PROJECT_LOCATION/$MODULE/build.gradle"
+        - android-build@0.10.0:
+            inputs:
+            - project_location: "$PROJECT_LOCATION"
+            - module: "$MODULE"
+            - variant: "$VARIANT"
+        - script@1.1.5:
+            inputs:
+            - is_debug: 'yes'
+            - content: ""
+        - cache-push@2.2.0: {}
+        envs:
+        - opts:
+            is_expand: false
+          VARIANT: prodDebug
+      deployStage:
+        description: 
+        steps:
+        - activate-ssh-key@4.0.3:
+            run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+        - git-clone@4.0.14: {}
+        - cache-pull@2.0.1: {}
+        - install-missing-android-tools@2.3.5:
+            inputs:
+            - gradlew_path: "$PROJECT_LOCATION/gradlew"
+        - change-android-versioncode-and-versionname@1.1.1:
+            inputs:
+            - version_code_offset: '1000'
+            - build_gradle_path: "$PROJECT_LOCATION/$MODULE/build.gradle"
+        - android-build@0.10.0:
+            inputs:
+            - project_location: "$PROJECT_LOCATION"
+            - module: "$MODULE"
+            - variant: "$VARIANT"
+        - script@1.1.5:
+            inputs:
+            - content: ""
+        - cache-push@2.2.0: {}
+        envs:
+        - opts:
+            is_expand: false
+          VARIANT: prodStage
+      deployProd:
+        description: 
+        steps:
+        - activate-ssh-key@4.0.3:
+            run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+        - git-clone@4.0.14: {}
+        - cache-pull@2.0.1: {}
+        - install-missing-android-tools@2.3.5:
+            inputs:
+            - gradlew_path: "$PROJECT_LOCATION/gradlew"
+        - change-android-versioncode-and-versionname@1.1.1:
+            inputs:
+            - version_code_offset: '1000'
+            - build_gradle_path: "$PROJECT_LOCATION/$MODULE/build.gradle"
+        - android-build@0.10.0:
+            inputs:
+            - project_location: "$PROJECT_LOCATION"
+            - module: "$MODULE"
+            - variant: "$VARIANT"
+        - script@1.1.5:
+            inputs:
+            - content: ""
+        - cache-push@2.2.0: {}
+        envs:
+        - opts:
+            is_expand: false
+          VARIANT: prodRelease
+    app:
+      envs:
+      - opts:
+          is_expand: false
+        PROJECT_LOCATION: <PROJECT_NAME>
+      - opts:
+          is_expand: false
+        MODULE: app
+    trigger_map:
+    - push_branch: develop
+      workflow: deployDev
+    - push_branch: stage
+      workflow: deployStage
+    - push_branch: release/*
+      workflow: deployProd
