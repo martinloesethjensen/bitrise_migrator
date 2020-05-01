@@ -1,5 +1,7 @@
 # Bitrise Migrator
 
+> Remember to have python 3 installed on your computer
+
 Copy / Paste:
 
 Fish shell
