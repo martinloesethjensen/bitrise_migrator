@@ -4,9 +4,49 @@ import subprocess
 import sys
 from pathlib import Path
 
+import click
+
 HOME_DIR = str(Path.home())
 BITRISE_MIGRATOR_DIR = '.bitrise_migrator'
 BITRISE_CLI_SCRIPT_URL = "https://raw.githubusercontent.com/bitrise-io/bitrise-add-new-project/master/_scripts/run.sh"
+
+
+@click.group()
+def main():
+    """
+    Simple CLI for creating Bitrise project by Martin L. Jensen
+    """
+    pass
+
+
+@main.command()
+def migrate():
+    token, org_id = handle_user_input_entry(
+        "Is this a personal Bitrise or an organizational project?\n\tEnter '1' to create a "
+        "personal Bitrise project\n\tEnter '2' to create an organizational project\n\tEnter 'q' "
+        "to quit\nYour input: ")
+
+    is_public: bool = handle_public_entry("Will this project be public? Defaults to not public.\nYour input (y/n): ")
+
+    setup_bitrise(token=token, org=org_id, is_org=True if len(org_id) > 0 else False,
+                  public=is_public)
+
+
+@main.command()
+@click.option("--token", prompt="Enter your Bitrise token", required=True, type=click.STRING,
+              help="The api token you can generate in security settings from the bitrise website.")
+@click.option("--org", default="", type=click.STRING, required=False, prompt="Enter your org id",
+              help="The id for your Bitrise organisation.")
+@click.option("--public", default="false", type=click.BOOL,
+              help="To specify whether or not the Bitrise project should be public.")
+def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: bool = False):
+    org_personal_placeholder: str = f'--org "{org}"' if is_org else '--personal "true"'
+    public_placeholder: str = 'true' if public else 'false'
+
+    cmd = f'bash -c "bash <(curl -sfL "{BITRISE_CLI_SCRIPT_URL}") --api-token "{token}" ' \
+          f'{org_personal_placeholder} --public "{public_placeholder}" --website" '
+    args = shlex.split(cmd)
+    subprocess.run(args)
 
 
 def handle_bitrise_migrator_files(file: str, prompt: str) -> str:
@@ -44,17 +84,6 @@ def read_org_id() -> str:
     return handle_bitrise_migrator_files(file, "Enter organisation id from Bitrise: ")
 
 
-# defaults to personal non-public bitrise project
-def setup_bitrise(bitrise_api_token: str = "", org_id: str = "", is_org: bool = False, is_public: bool = False):
-    org_personal_placeholder: str = f'--org "{org_id}"' if is_org else '--personal "true"'
-    public_placeholder: str = 'true' if is_public else 'false'
-
-    cmd = f'bash -c "bash <(curl -sfL "{BITRISE_CLI_SCRIPT_URL}") --api-token "{bitrise_api_token}" ' \
-          f'{org_personal_placeholder} --public "{public_placeholder}" --website" '
-    args = shlex.split(cmd)
-    subprocess.run(args)
-
-
 def file_exists(file: str) -> bool:
     return os.path.isfile(file)
 
@@ -84,12 +113,4 @@ def handle_public_entry(prompt: str) -> bool:
 
 
 if __name__ == '__main__':
-    token, org_id = handle_user_input_entry(
-        "Is this a personal Bitrise or an organizational project?\n\tEnter '1' to create a "
-        "personal Bitrise project\n\tEnter '2' to create an organizational project\n\tEnter 'q' "
-        "to quit\nYour input: ")
-
-    is_public: bool = handle_public_entry("Will this project be public? Defaults to not public.\nYour input (y/n): ")
-
-    setup_bitrise(bitrise_api_token=token, org_id=org_id, is_org=True if len(org_id) > 0 else False,
-                  is_public=is_public)
+    main()
