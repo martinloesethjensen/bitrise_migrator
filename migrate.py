@@ -62,10 +62,9 @@ def prepare_bitrise_file(url: str):
         file.write(res.text)
     file.close()
 
-    dirname = os.path.dirname(os.getcwd())
-    print(dirname)
+    dirname = os.path.basename(os.getcwd())
 
-    find_and_replace("<PROJECT_NAME>", dirname, "bitrise.yml")
+    find_and_replace(dirname, "<PROJECT_NAME>", "bitrise.yml")
 
 
 def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: bool = False):
