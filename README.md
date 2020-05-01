@@ -6,11 +6,11 @@ Copy / Paste:
 
 Fish shell
 ```fish
-python3 (curl -s https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/master/migrate.py | psub)
+python3 (curl -s https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/master/migrate.py | psub) migrate
 ```
 
 Bash, zsh
 ```bash
-python3 <(curl -s https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/master/migrate.py)
+python3 <(curl -s https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/master/migrate.py) migrate
 ```
 

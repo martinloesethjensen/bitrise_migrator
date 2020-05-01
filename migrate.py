@@ -28,17 +28,20 @@ def migrate():
 
     is_public: bool = handle_public_entry("Will this project be public? Defaults to not public.\nYour input (y/n): ")
 
-    setup_bitrise(token=token, org=org_id, is_org=True if len(org_id) > 0 else False,
-                  public=is_public)
+    setup_bitrise(token=token, org=org_id, is_org=True if len(org_id) > 0 else False, public=is_public)
 
 
 @main.command()
-@click.option("--token", prompt="Enter your Bitrise token", required=True, type=click.STRING,
+@click.option("--token", default="", prompt="Enter your Bitrise token", required=True, type=click.STRING,
               help="The api token you can generate in security settings from the bitrise website.")
 @click.option("--org", default="", type=click.STRING, required=False, prompt="Enter your org id",
               help="The id for your Bitrise organisation.")
-@click.option("--public", default="false", type=click.BOOL,
+@click.option("--public", default="false", type=click.BOOL, required=False,
               help="To specify whether or not the Bitrise project should be public.")
+def run_setup(token: str = "", org: str = "", public: bool = False):
+    setup_bitrise(token=token, org=org, is_org=True if len(org) > 0 else False, public=public)
+
+
 def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: bool = False):
     org_personal_placeholder: str = f'--org "{org}"' if is_org else '--personal "true"'
     public_placeholder: str = 'true' if public else 'false'
