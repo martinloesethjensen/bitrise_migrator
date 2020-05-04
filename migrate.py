@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 import click
-from pip._vendor import requests
+import requests
 
 HOME_DIR = str(Path.home())
 BITRISE_MIGRATOR_DIR = '.bitrise_migrator'
@@ -24,18 +24,44 @@ def main():
 @main.command()
 def migrate():
     token, org_id = handle_user_input_entry(
-        "Is this a personal Bitrise or an organizational project?\n\tEnter '1' to create a "
-        "personal Bitrise project\n\tEnter '2' to create an organizational project\n\tEnter 'q' "
-        "to quit\nYour input: ")
+        "\nIs this a personal Bitrise or an organizational project?\n--> Enter '1' to create a "
+        "personal Bitrise project\n--> Enter '2' to create an organizational project\n--> Enter 'q' "
+        "to quit\n\tYour input: ")
 
-    is_public: bool = handle_user_yn_input("Will this project be public? Defaults to not public.\nYour input (y/n): ")
+    is_public: bool = handle_user_yn_input(
+        "\nWill this project be public? Defaults to not public.\n\tYour input (y/n): ")
 
-    import_file: bool = handle_user_yn_input("Would you like to import Bitrise workflow from url (y/n): ")
+    handle_bitrise_import()
 
-    if import_file:
-        prepare_bitrise_file(url=input("Enter url to raw text file example a github raw link: "))
+    handle_custom_import()
 
     setup_bitrise(token=token, org=org_id, is_org=True if len(org_id) > 0 else False, public=is_public)
+
+
+def handle_bitrise_import():
+    import__bitrise_file: bool = handle_user_yn_input(
+        "\nWould you like to import Bitrise workflow from url?\n\tYour input (y/n): ")
+    if import__bitrise_file:
+        prepare_bitrise_file(url=input("\nEnter url to raw text file example a github raw link: "))
+
+
+def generate_dirs(file_name: str):
+    if "/" in file_name:
+        file_dir = file_name.replace(file_name.split("/")[-1], "")
+        os.makedirs(file_dir) if not os.path.exists(file_dir) else None
+
+
+def handle_custom_import():
+    import_custom_file: bool = handle_user_yn_input("\nDo you want to import custom files?\n\tYour input (y/n): ")
+    while import_custom_file:
+        file_name = input("\nEnter file name (use '/' to create folder with the file): ")
+        url = input("\nEnter url to raw text file example a github raw link: ")
+
+        # Generate dirs if file_name contains '/'
+        generate_dirs(file_name)
+
+        import_file(file_name, url)
+        import_custom_file = handle_user_yn_input("\nImport more?\n\tYour input (y/n):")
 
 
 @main.command()
@@ -54,6 +80,23 @@ def run_setup(token: str = "", org: str = "", public: bool = False):
               help="A GitHub link like this: https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/v0.1.1.pre/migrate.py")
 def import_bitrise_file(url: str):
     prepare_bitrise_file(url)
+
+
+@main.command()
+@click.option("--file", prompt="Enter file name (use '/' to create folder with the file)", type=click.STRING,
+              help="File name can also use '/' to create one or more folders.")
+@click.option("--url", prompt="Enter url for raw text file", type=click.STRING,
+              help="A GitHub link like this: https://raw.githubusercontent.com/martinloesethjensen/bitrise_migrator/v0.1.1.pre/migrate.py")
+def import_file(file: str, url: str):
+    generate_dirs(file)
+    write_file(file, url)
+
+
+def write_file(file_name: str, url: str, mode="w+"):
+    res = requests.get(url)
+    with open(file_name, mode) as file:
+        file.write(res.text)
+    file.close()
 
 
 def prepare_bitrise_file(url: str):
@@ -154,6 +197,7 @@ def locate_android_project_folder() -> str:
             if file == "settings.gradle":
                 os.chdir(dirpath)
                 return os.getcwd()
+    return "No android project folder found"
 
 
 if __name__ == '__main__':
