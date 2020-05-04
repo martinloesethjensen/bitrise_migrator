@@ -57,10 +57,8 @@ def handle_custom_import():
         file_name = input("\nEnter file name (use '/' to create folder with the file): ")
         url = input("\nEnter url to raw text file example a github raw link: ")
 
-        # Generate dirs if file_name contains '/'
         generate_dirs(file_name)
-
-        import_file(file_name, url)
+        write_file(file_name, url)
         import_custom_file = handle_user_yn_input("\nImport more?\n\tYour input (y/n):")
 
 
