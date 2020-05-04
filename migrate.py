@@ -62,7 +62,9 @@ def prepare_bitrise_file(url: str):
         file.write(res.text)
     file.close()
 
-    dirname = os.path.basename(os.getcwd())
+    dirname = os.path.basename(locate_android_project_folder())
+
+    os.chdir("..")
 
     find_and_replace(dirname, "<PROJECT_NAME>", "bitrise.yml")
 
@@ -146,5 +148,14 @@ def handle_user_yn_input(prompt: str) -> bool:
     return True if input(prompt).strip().lower() == "y" else False
 
 
+def locate_android_project_folder() -> str:
+    for dirpath, dirnames, files in os.walk(os.getcwd()):
+        for file in files:
+            if file == "settings.gradle":
+                os.chdir(dirpath)
+                print(os.getcwd())
+                return os.getcwd()
+
+
 if __name__ == '__main__':
-    main()
+    locate_android_project_folder()
