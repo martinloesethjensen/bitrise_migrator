@@ -153,9 +153,8 @@ def locate_android_project_folder() -> str:
         for file in files:
             if file == "settings.gradle":
                 os.chdir(dirpath)
-                print(os.getcwd())
                 return os.getcwd()
 
 
 if __name__ == '__main__':
-    locate_android_project_folder()
+    main()
