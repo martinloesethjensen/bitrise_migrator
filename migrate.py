@@ -48,7 +48,8 @@ def handle_bitrise_import():
 def generate_dirs(file_name: str):
     if "/" in file_name:
         file_dir = file_name.replace(file_name.split("/")[-1], "")
-        os.makedirs(file_dir) if not os.path.exists(file_dir) else None
+        if not os.path.exists(file_dir):
+            os.makedirs(file_dir)
 
 
 def handle_custom_import():
