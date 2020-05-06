@@ -23,13 +23,9 @@ def main():
 
 @main.command()
 def migrate():
-    token, org_id = handle_user_input_entry(
-        "\nIs this a personal Bitrise or an organizational project?\n--> Enter '1' to create a "
-        "personal Bitrise project\n--> Enter '2' to create an organizational project\n--> Enter 'q' "
-        "to quit\n\tYour input: ")
+    token, org_id = handle_user_input_entry()
 
-    is_public: bool = handle_user_yn_input(
-        "\nWill this project be public? Defaults to not public.\n\tYour input (y/n): ")
+    is_public: bool = click.confirm('\nWill this project be public? Defaults to not public.')
 
     handle_bitrise_import()
 
@@ -39,10 +35,18 @@ def migrate():
 
 
 def handle_bitrise_import():
-    import__bitrise_file: bool = handle_user_yn_input(
-        "\nWould you like to import Bitrise workflow from url?\n\tYour input (y/n): ")
-    if import__bitrise_file:
-        prepare_bitrise_file(url=input("\nEnter url to raw text file example a github raw link: "))
+    if click.confirm('\nWould you like to import Bitrise workflow from url?'):
+        prepare_bitrise_file(url=click.prompt("\nEnter url to raw text file example a github raw link: ", type=str))
+
+
+def handle_custom_import():
+    while click.confirm('\nDo you want to import custom files?'):
+        file_name = click.prompt("\nEnter file name (use '/' to create folder with the file): ", type=str)
+        url = click.prompt("\nEnter url to raw text file example a github raw link: ", type=str)
+
+        if click.confirm('Do you want to continue?'):
+            generate_dirs(file_name)
+            write_file(file_name, url)
 
 
 def generate_dirs(file_name: str):
@@ -50,17 +54,6 @@ def generate_dirs(file_name: str):
         file_dir = file_name.replace(file_name.split("/")[-1], "")
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
-
-
-def handle_custom_import():
-    import_custom_file: bool = handle_user_yn_input("\nDo you want to import custom files?\n\tYour input (y/n): ")
-    while import_custom_file:
-        file_name = input("\nEnter file name (use '/' to create folder with the file): ")
-        url = input("\nEnter url to raw text file example a github raw link: ")
-
-        generate_dirs(file_name)
-        write_file(file_name, url)
-        import_custom_file = handle_user_yn_input("\nImport more?\n\tYour input (y/n):")
 
 
 @main.command()
@@ -98,6 +91,17 @@ def write_file(file_name: str, url: str, mode="w+"):
     file.close()
 
 
+@main.command()
+@click.option('--token', help='Update token file with new token.', default='')
+@click.option('--org', help='Update with new org id.', default='')
+def update(token: str, org: str):
+    if click.confirm('Confirm Update'):
+        if len(token) > 0:
+            update_bitrise_token(token)
+        if len(org) > 0:
+            update_org_id(org)
+
+
 def prepare_bitrise_file(url: str):
     res = requests.get(url)
     with open("bitrise.yml", "w+") as file:
@@ -108,7 +112,7 @@ def prepare_bitrise_file(url: str):
 
     os.chdir("..")
 
-    find_and_replace(dirname, "<PROJECT_NAME>", "bitrise.yml")
+    find_and_replace("<PROJECT_NAME>", dirname, "bitrise.yml")
 
 
 def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: bool = False):
@@ -121,35 +125,10 @@ def setup_bitrise(token: str = "", org: str = "", is_org: bool = False, public: 
     subprocess.run(args)
 
 
-def find_and_replace(find, replace, file_name):
+def find_and_replace(old, new, file_name: str):
     with fileinput.FileInput(file_name, inplace=True) as file:
         for line in file:
-            print(line.replace(replace, find), end='')
-
-
-def handle_bitrise_migrator_files(file: str, prompt: str) -> str:
-    mode = "r+" if dir_exists() and file_exists(file) else "w+"  # size check???
-
-    if not dir_exists():
-        os.makedirs(f'{HOME_DIR}/{BITRISE_MIGRATOR_DIR}')
-
-    if not file_exists(file):
-        open(file, "w").close()
-
-    with open(file, mode) as f:
-        file_size = os.path.getsize(file)
-
-        # Save token from input into the created file
-        if file_size == 0 or mode == "w":
-            output = input(f'{prompt}')
-            f.write(f'{output}')
-        else:
-            # Read token from existing file that is not empty
-            output = f.read()
-
-        f.close()
-
-    return output
+            print(line.replace(old, new), end='')
 
 
 def read_bitrise_token() -> str:
@@ -162,41 +141,86 @@ def read_org_id() -> str:
     return handle_bitrise_migrator_files(file, "Enter organisation id from Bitrise: ")
 
 
-def file_exists(file: str) -> bool:
-    return os.path.isfile(file)
+def handle_bitrise_migrator_files(file: str, prompt: str) -> str:
+    mode = "r+" if dir_exists() and os.path.isfile(file) else "w+"
+
+    if not dir_exists():
+        os.makedirs(f'{HOME_DIR}/{BITRISE_MIGRATOR_DIR}')
+
+    # Create file if it does not already exist
+    if not os.path.isfile(file):
+        open(file, "w").close()
+
+    with open(file, mode) as f:
+        file_size = os.path.getsize(file)
+
+        # Save token from input into the created file
+        if file_size == 0 or mode == "w":
+            output = click.prompt(f'{prompt}', type=str)
+            if len(output) > 0:
+                f.write(f'{output}')
+        else:
+            # Read token from existing file that is not empty
+            output = f.read()
+        f.close()
+    return output
+
+
+def update_bitrise_token(token: str):
+    file = f'{HOME_DIR}/{BITRISE_MIGRATOR_DIR}/.bitrise_token'
+    write_to_file(file, token)
+
+
+def update_org_id(org_id: str):
+    file = f'{HOME_DIR}/{BITRISE_MIGRATOR_DIR}/.org_id'
+    write_to_file(file, org_id)
+
+
+def write_to_file(file_path: str, write_input: str):
+    if not dir_exists():
+        os.makedirs(f'{HOME_DIR}/{BITRISE_MIGRATOR_DIR}')
+
+    if not os.path.isfile(file_path):
+        open(file_path, "w").close()
+
+    with open(file_path, 'w') as f:
+        f.write(write_input)
+        f.close()
 
 
 def dir_exists() -> bool:
     return os.path.isdir(f'{HOME_DIR}/{BITRISE_MIGRATOR_DIR}')
 
 
-def handle_user_input_entry(prompt: str) -> tuple:
-    while True:
-        user_input = input(prompt)
-        if len(user_input) > 0:
-            temp_input = user_input.strip().lower()
-            if temp_input == "q":
-                sys.exit()
-            elif temp_input == "1":
-                bitrise_token = read_bitrise_token()
-                return bitrise_token, ""
-            elif temp_input == "2":
-                bitrise_token = read_bitrise_token()
-                org_id = read_org_id()
-                return bitrise_token, org_id
+def handle_user_input_entry() -> tuple:
+    entry_options = [0, 1, 2]
+    user_input = -1
+    while user_input not in entry_options:
+        user_input = click.prompt(
+            "\nIs this a personal Bitrise or an organizational project?"
+            "\n--> Enter '1' to create a personal Bitrise project"
+            "\n--> Enter '2' to create an organizational project"
+            "\n--> Enter '0' to quit"
+            "\nYour input",
+            type=int)
 
-
-def handle_user_yn_input(prompt: str) -> bool:
-    return True if input(prompt).strip().lower() == "y" else False
+    if user_input == 0:
+        sys.exit()
+    elif user_input == 1:
+        bitrise_token = read_bitrise_token()
+        return bitrise_token, ""
+    elif user_input == 2:
+        bitrise_token = read_bitrise_token()
+        org_id = read_org_id()
+        return bitrise_token, org_id
 
 
 def locate_android_project_folder() -> str:
-    for dirpath, dirnames, files in os.walk(os.getcwd()):
+    for dir_path, _, files in os.walk(os.getcwd()):
         for file in files:
             if file == "settings.gradle":
-                os.chdir(dirpath)
+                os.chdir(dir_path)
                 return os.getcwd()
-    return "No android project folder found"
 
 
 if __name__ == '__main__':
